@@ -1,6 +1,6 @@
 const express = require('express');
 const multer = require('multer');
-const { getWordCountFromPdf } = require('./controllers/pdfController');
+const { buildFrequency, getWordCountFromPdf, summarizeFrequency } = require('./controllers/pdfController');
 
 const app = express();
 const PORT = process.env.PORT || 7003;
@@ -20,6 +20,46 @@ app.get('/', (_req, res) => {
 
 app.get('/health', (_req, res) => {
   res.status(200).send({ status: 'ok' });
+});
+
+app.post('/map/frequencies', (req, res) => {
+  const incomingWords = req.body && req.body.words;
+  const source = (req.body && req.body.source) || 'unknown';
+  const createdAt = (req.body && req.body.createdAt) || new Date().toISOString();
+
+  if (!Array.isArray(incomingWords)) {
+    return res.status(400).send({ error: 'words must be an array of strings.' });
+  }
+
+  const words = incomingWords
+    .filter((word) => typeof word === 'string')
+    .map((word) => word.trim().toLowerCase())
+    .filter(Boolean);
+
+  const frequencies = buildFrequency(words);
+  const summary = summarizeFrequency(frequencies);
+
+  const batch = {
+    batchId: frequencyStore.length + 1,
+    source,
+    createdAt,
+    wordCount: summary.wordCount,
+    uniqueWords: summary.uniqueWordCount,
+    frequencies,
+  };
+
+  frequencyStore.push(batch);
+
+  console.log(`[backend2][MAP] Stored batch #${batch.batchId} from ${source}`);
+  console.log('[backend2][MAP] Chunk frequencies:', frequencies);
+
+  res.status(200).send({
+    worker: 'backend2',
+    batchId: batch.batchId,
+    wordCount: summary.wordCount,
+    uniqueWordCount: summary.uniqueWordCount,
+    frequencies,
+  });
 });
 
 app.post('/store/frequencies', (req, res) => {

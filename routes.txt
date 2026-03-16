@@ -10,8 +10,12 @@ Response: { status: "ok" }
 
 POST /pdf/wordcount
 Input: multipart/form-data with field "file" containing a PDF document
-Response: { wordCount: number, uniqueWordCount: number, frequencies: { [word]: count }, topWords: [{ word: string, count: number }] }
+Response: { wordCount: number, uniqueWordCount: number, frequencies: { [word]: count }, topWords: [{ word: string, count: number }], mapResults: [{ worker, ok, status, response }] }
 Error Responses: 400 for missing/invalid file, 500 on processing errors
+
+POST /map/frequencies (backend1:7002 and backend2:7003)
+Input: JSON { source: string, createdAt: string, words: string[] }
+Response: { worker: string, batchId: number, wordCount: number, uniqueWordCount: number, frequencies: { [word]: count } }
 
 POST /store/frequencies (backend1:7002 and backend2:7003)
 Input: JSON { source: string, createdAt: string, frequencies: { [word]: count } }
@@ -22,5 +26,5 @@ Input: none
 Response: { totalBatches: number, latestBatch: object|null }
 
 POST /dispatch/test (backend:7001)
-Input: optional JSON { frequencies: { [word]: count } }
-Response: { message: string, dispatchResults: [{ worker, ok, status|error, response? }] }
+Input: optional JSON { words: string[] }
+Response: { message: string, dispatchResults: [{ worker, ok, status|error, response? }], reduced: object }
