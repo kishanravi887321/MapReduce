@@ -1,0 +1,119 @@
+/* Light, purposeful styling for the PDF word count UI */
+:root {
+  --bg: #f7f7fb;
+  --card: #ffffff;
+  --border: #d7d7e0;
+  --text: #1f2430;
+  --muted: #5a5f73;
+  --accent: #0f7bff;
+  --accent-2: #0abf8a;
+  --shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  font-family: "Segoe UI", sans-serif;
+  margin: 0;
+  padding: 32px;
+  background: radial-gradient(circle at 20% 20%, #eef3ff, transparent 25%),
+              radial-gradient(circle at 80% 0%, #e7fff5, transparent 22%),
+              var(--bg);
+  color: var(--text);
+  display: flex;
+  justify-content: center;
+}
+
+main {
+  width: min(900px, 100%);
+  background: var(--card);
+  padding: 28px 32px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+}
+
+h1 {
+  margin: 0 0 6px;
+}
+
+p {
+  margin: 0 0 14px;
+  color: var(--muted);
+}
+
+fieldset {
+  margin: 16px 0;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #fafbff;
+}
+
+legend {
+  padding: 0 6px;
+  font-weight: 600;
+}
+
+label {
+  display: block;
+  margin: 8px 0 4px;
+  color: var(--text);
+}
+
+.row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.row input[type="text"] {
+  flex: 1;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+input[type="file"] {
+  margin: 6px 0 12px;
+}
+
+button {
+  padding: 10px 16px;
+  border: none;
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 6px 16px rgba(15, 123, 255, 0.25);
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+
+button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(15, 123, 255, 0.32);
+}
+
+button:active {
+  transform: translateY(0);
+  box-shadow: 0 6px 14px rgba(15, 123, 255, 0.25);
+}
+
+.status {
+  margin-top: 16px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #f4f6ff;
+  color: var(--text);
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+}
+
+@media (max-width: 640px) {
+  body { padding: 18px; }
+  main { padding: 20px; }
+  .row { flex-direction: column; align-items: stretch; }
+}
