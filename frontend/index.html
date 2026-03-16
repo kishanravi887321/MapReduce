@@ -7,17 +7,30 @@
   <link rel="stylesheet" href="./style.css" />
 </head>
 <body>
-  <h1>PDF Word Count</h1>
-  <p>Upload a PDF and send it to backend on port 7001.</p>
+  <main class="shell">
+    <section class="hero">
+      <p class="eyebrow">Distributed Algo Lab</p>
+      <h1>PDF Word Count Service</h1>
+      <p class="subtext">Upload a PDF and send it to backend on port 7001 for processing.</p>
+    </section>
 
-  <fieldset>
-    <legend>Upload PDF</legend>
-    <label for="pdfFile">PDF File</label>
-    <input id="pdfFile" type="file" accept="application/pdf" />
-    <button id="submitBtn">Upload and Count</button>
-  </fieldset>
+    <section class="panel" aria-label="Upload Panel">
+      <div class="panel-head">
+        <h2>Upload PDF</h2>
+        <span class="chip">Target: localhost:7001</span>
+      </div>
 
-  <div id="status" class="status">Waiting for upload.</div>
+      <label for="pdfFile">Choose PDF file</label>
+      <input id="pdfFile" type="file" accept="application/pdf" />
+
+      <button id="submitBtn" type="button">Upload and Count Words</button>
+    </section>
+
+    <section class="panel" aria-label="Response Panel">
+      <h2>Response</h2>
+      <div id="status" class="status">Waiting for upload.</div>
+    </section>
+  </main>
 
   <script>
     const statusEl = document.getElementById('status');
@@ -27,10 +40,12 @@
     async function handleUpload() {
       const file = pdfInput.files[0];
       if (!file) {
+        statusEl.className = 'status error';
         statusEl.textContent = 'Please choose a PDF file first.';
         return;
       }
       const url = 'http://localhost:7001/pdf/wordcount';
+      statusEl.className = 'status busy';
       statusEl.textContent = `Uploading to ${url} ...`;
 
       try {
@@ -42,11 +57,14 @@
         });
         const data = await resp.json().catch(() => ({}));
         if (!resp.ok) {
+          statusEl.className = 'status error';
           statusEl.textContent = data.error || `Request failed with status ${resp.status}`;
           return;
         }
+        statusEl.className = 'status success';
         statusEl.textContent = `Word count: ${data.wordCount ?? 'unknown'}`;
       } catch (err) {
+        statusEl.className = 'status error';
         statusEl.textContent = `Error: ${err.message}`;
       }
     }
