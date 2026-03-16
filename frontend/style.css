@@ -107,6 +107,13 @@ h1 {
   margin-bottom: 10px;
 }
 
+.panel-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
 h2 {
   margin: 0;
   font-size: 1.08rem;
@@ -254,6 +261,16 @@ h2 {
   background: #feefec;
   border-color: #efc8bf;
   color: var(--warn);
+}
+
+.client-message {
+  margin-top: 10px;
+  border: 1px solid #c3e4d6;
+  border-radius: 10px;
+  background: #eaf9f1;
+  color: #1d7f55;
+  padding: 10px 12px;
+  font-weight: 600;
 }
 
 .metrics {
@@ -432,6 +449,10 @@ tbody tr:last-child td {
   .panel-head {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .panel-actions {
+    width: 100%;
   }
 
   .metrics {

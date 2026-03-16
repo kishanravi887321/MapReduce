@@ -56,9 +56,16 @@
     <section class="panel" aria-label="Results Panel">
       <div class="panel-head">
         <h2>Results</h2>
-        <button id="resetBtn" class="btn btn-secondary" type="button" hidden>Upload Another File</button>
+        <div class="panel-actions">
+          <button id="devToggleBtn" class="btn btn-secondary" type="button">Developer View</button>
+          <button id="resetBtn" class="btn btn-secondary" type="button" hidden>Upload Another File</button>
+        </div>
       </div>
       <div id="status" class="status">Select a file to begin.</div>
+
+      <div id="clientMessage" class="client-message" hidden>
+        Your data is stored successfully.
+      </div>
 
       <div id="metrics" class="metrics" hidden>
         <article class="metric-card">
@@ -114,15 +121,25 @@
     const rowsEl = document.getElementById('resultRows');
     const chartEl = document.getElementById('chart');
     const resetBtn = document.getElementById('resetBtn');
+    const devToggleBtn = document.getElementById('devToggleBtn');
+    const clientMessageEl = document.getElementById('clientMessage');
 
     const metricDoc = document.getElementById('metricDoc');
     const metricTotal = document.getElementById('metricTotal');
     const metricUnique = document.getElementById('metricUnique');
     const metricState = document.getElementById('metricState');
 
+    let developerMode = false;
+
     function setStatus(type, message) {
       statusEl.className = `status ${type}`;
       statusEl.textContent = message;
+    }
+
+    function updateDeveloperVisibility() {
+      devToggleBtn.textContent = developerMode ? 'Hide Developer View' : 'Developer View';
+      metricsEl.hidden = !developerMode;
+      resultEl.hidden = !developerMode;
     }
 
     function showFile(file) {
@@ -134,6 +151,7 @@
       fileBadge.hidden = false;
       fileNameEl.textContent = file.name;
       setStatus('info', 'File selected. Click Analyze Document to continue.');
+      clientMessageEl.hidden = true;
     }
 
     function renderChart(topWords) {
@@ -169,22 +187,23 @@
       }
 
       renderChart(topWords);
-      metricsEl.hidden = false;
-      resultEl.hidden = false;
       resetBtn.hidden = false;
+      clientMessageEl.hidden = false;
 
       metricDoc.textContent = file ? file.name : 'Uploaded document';
       metricTotal.textContent = data.wordCount ?? 0;
       metricUnique.textContent = data.uniqueWordCount ?? 0;
       metricState.textContent = 'Completed';
+      updateDeveloperVisibility();
 
-      setStatus('success', 'Your document has been processed successfully. Here is a summary of the document statistics.');
+      setStatus('success', 'Your data is processing complete. Data is stored successfully.');
     }
 
     function resetView() {
       pdfInput.value = '';
       showFile(null);
       progressEl.hidden = true;
+      clientMessageEl.hidden = true;
       metricsEl.hidden = true;
       resultEl.hidden = true;
       resetBtn.hidden = true;
@@ -195,6 +214,7 @@
       metricUnique.textContent = '0';
       metricState.textContent = 'Completed';
       setStatus('info', 'Select a file to begin.');
+      updateDeveloperVisibility();
     }
 
     async function handleUpload() {
@@ -212,7 +232,8 @@
       const url = 'http://localhost:7001/pdf/wordcount';
       progressEl.hidden = false;
       analyzeBtn.disabled = true;
-      setStatus('busy', 'Processing your document. Please wait...');
+      setStatus('busy', 'Your data is processing. Please wait...');
+      clientMessageEl.hidden = true;
 
       try {
         const formData = new FormData();
@@ -286,6 +307,11 @@
 
     resetBtn.addEventListener('click', () => {
       resetView();
+    });
+
+    devToggleBtn.addEventListener('click', () => {
+      developerMode = !developerMode;
+      updateDeveloperVisibility();
     });
 
     resetView();
