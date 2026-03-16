@@ -1,6 +1,9 @@
 const express = require('express');
 const multer = require('multer');
-const { getWordCountFromPdf } = require('./controllers/pdfController');
+const {
+  extractWordsFromPdf,
+  summarizeFrequency,
+} = require('./controllers/pdfController');
 
 const app = express();
 const PORT = process.env.PORT || 7001;
@@ -27,24 +30,27 @@ const upload = multer({
   limits: { fileSize: 10 * 1024 * 1024 },
 });
 
-function partitionFrequencies(frequencies) {
-  const worker1 = {};
-  const worker2 = {};
-
-  Object.entries(frequencies || {}).forEach(([word, count], index) => {
-    if (index % 2 === 0) {
-      worker1[word] = count;
-    } else {
-      worker2[word] = count;
-    }
-  });
-
-  return { worker1, worker2 };
+function splitWordsIntoChunks(words, chunkCount) {
+  const chunks = Array.from({ length: chunkCount }, () => []);
+  for (let index = 0; index < (words || []).length; index += 1) {
+    chunks[index % chunkCount].push(words[index]);
+  }
+  return chunks;
 }
 
-async function sendFrequencyToWorker(workerName, workerUrl, payload) {
+function reduceFrequencyMaps(partials) {
+  const finalFrequency = {};
+  for (const partial of partials) {
+    for (const [word, count] of Object.entries(partial || {})) {
+      finalFrequency[word] = (finalFrequency[word] || 0) + count;
+    }
+  }
+  return finalFrequency;
+}
+
+async function sendMapTaskToWorker(workerName, workerUrl, payload) {
   try {
-    console.log(`[backend] Sending frequencies to ${workerName} at ${workerUrl}`);
+    console.log(`[backend] Sending map task to ${workerName} at ${workerUrl}`);
     const response = await fetch(workerUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -69,32 +75,39 @@ async function sendFrequencyToWorker(workerName, workerUrl, payload) {
 }
 
 app.post('/dispatch/test', async (req, res) => {
-  const incoming = req.body && req.body.frequencies;
-  const frequencies = incoming && typeof incoming === 'object' && !Array.isArray(incoming)
-    ? incoming
-    : { distributed: 2, mapreduce: 3, hadoop: 1, spark: 1 };
+  const incomingWords = req.body && req.body.words;
+  const words = Array.isArray(incomingWords)
+    ? incomingWords.filter((word) => typeof word === 'string' && word.trim().length > 0)
+    : ['distributed', 'mapreduce', 'hadoop', 'spark', 'mapreduce'];
 
-  const { worker1, worker2 } = partitionFrequencies(frequencies);
+  const [worker1Words, worker2Words] = splitWordsIntoChunks(words, 2);
   const createdAt = new Date().toISOString();
 
   const dispatchResults = await Promise.all([
-    sendFrequencyToWorker('backend1', 'http://localhost:7002/store/frequencies', {
+    sendMapTaskToWorker('backend1', 'http://localhost:7002/map/frequencies', {
       source: 'backend-dispatch-test',
       createdAt,
-      frequencies: worker1,
+      words: worker1Words,
     }),
-    sendFrequencyToWorker('backend2', 'http://localhost:7003/store/frequencies', {
+    sendMapTaskToWorker('backend2', 'http://localhost:7003/map/frequencies', {
       source: 'backend-dispatch-test',
       createdAt,
-      frequencies: worker2,
+      words: worker2Words,
     }),
   ]);
 
-  console.log('[backend] Test dispatch results:', dispatchResults);
+  const successfulPartials = dispatchResults
+    .filter((item) => item.ok && item.response && item.response.frequencies)
+    .map((item) => item.response.frequencies);
+
+  const reducedFrequency = reduceFrequencyMaps(successfulPartials);
+
+  console.log('[backend] Test map-reduce results:', dispatchResults);
 
   res.status(200).send({
-    message: 'Dispatch test completed',
+    message: 'Map-reduce dispatch test completed',
     dispatchResults,
+    reduced: summarizeFrequency(reducedFrequency),
   });
 });
 
@@ -116,28 +129,47 @@ app.post('/pdf/wordcount', upload.single('file'), async (req, res) => {
       return res.status(400).send({ error: 'Only PDF uploads are allowed.' });
     }
 
-    const result = await getWordCountFromPdf(req.file.buffer);
-    const { worker1, worker2 } = partitionFrequencies(result.frequencies);
+    const words = await extractWordsFromPdf(req.file.buffer);
+    const [worker1Words, worker2Words] = splitWordsIntoChunks(words, 2);
 
     const createdAt = new Date().toISOString();
-    const dispatchResults = await Promise.all([
-      sendFrequencyToWorker('backend1', 'http://localhost:7002/store/frequencies', {
+    const mapResults = await Promise.all([
+      sendMapTaskToWorker('backend1', 'http://localhost:7002/map/frequencies', {
         source: 'backend',
         createdAt,
-        frequencies: worker1,
+        words: worker1Words,
       }),
-      sendFrequencyToWorker('backend2', 'http://localhost:7003/store/frequencies', {
+      sendMapTaskToWorker('backend2', 'http://localhost:7003/map/frequencies', {
         source: 'backend',
         createdAt,
-        frequencies: worker2,
+        words: worker2Words,
       }),
     ]);
 
-    console.log('[backend] Dispatched frequency partitions:', dispatchResults);
+    const failedWorkers = mapResults.filter((result) => !result.ok);
+    if (failedWorkers.length > 0) {
+      return res.status(502).send({
+        error: 'One or more worker nodes failed during map phase.',
+        mapResults,
+      });
+    }
+
+    const partialFrequencies = mapResults
+      .map((result) => result.response && result.response.frequencies)
+      .filter(Boolean);
+
+    const reducedFrequency = reduceFrequencyMaps(partialFrequencies);
+    const reducedSummary = summarizeFrequency(reducedFrequency);
+
+    console.log('[backend] Map phase completed:', mapResults.map((item) => ({
+      worker: item.worker,
+      wordsReceived: item.response ? item.response.wordCount : 0,
+    })));
+    console.log('[backend] Reduce phase completed. Unique words:', reducedSummary.uniqueWordCount);
 
     res.status(200).send({
-      ...result,
-      workerDispatch: dispatchResults,
+      ...reducedSummary,
+      mapResults,
     });
   } catch (err) {
     console.error('Error processing PDF word count:', err.message);
