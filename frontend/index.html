@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PDF Word Count</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <h1>PDF Word Count</h1>
+  <p>Upload a PDF to the primary backend or send to worker nodes for distributed word counting.</p>
+
+  <fieldset>
+    <legend>Backend Target</legend>
+    <div>
+      <label><input type="radio" name="backend" value="http://localhost:7001" checked /> backend (7001) — primary API</label>
+      <label><input type="radio" name="backend" value="http://localhost:7002" /> backend1 (7002) — worker</label>
+      <label><input type="radio" name="backend" value="http://localhost:7003" /> backend2 (7003) — worker</label>
+    </div>
+    <div class="row">
+      <label for="customUrl">Custom URL (optional)</label>
+      <input id="customUrl" type="text" placeholder="e.g., http://localhost:7001" />
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Upload PDF</legend>
+    <label for="pdfFile">PDF File</label>
+    <input id="pdfFile" type="file" accept="application/pdf" />
+    <button id="submitBtn">Upload and Count</button>
+  </fieldset>
+
+  <div id="status" class="status">Waiting for upload.</div>
+
+  <script>
+    const statusEl = document.getElementById('status');
+    const pdfInput = document.getElementById('pdfFile');
+    const submitBtn = document.getElementById('submitBtn');
+    const customUrlInput = document.getElementById('customUrl');
+
+    function getTargetBase() {
+      const custom = customUrlInput.value.trim();
+      if (custom) return custom.replace(/\/$/, '');
+      const checked = document.querySelector('input[name="backend"]:checked');
+      return checked ? checked.value : 'http://localhost:7001';
+    }
+
+    async function handleUpload() {
+      const file = pdfInput.files[0];
+      if (!file) {
+        statusEl.textContent = 'Please choose a PDF file first.';
+        return;
+      }
+      const target = getTargetBase();
+      const url = `${target}/pdf/wordcount`;
+      statusEl.textContent = `Uploading to ${url} ...`;
+
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+        const resp = await fetch(url, {
+          method: 'POST',
+          body: formData,
+        });
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok) {
+          statusEl.textContent = data.error || `Request failed with status ${resp.status}`;
+          return;
+        }
+        statusEl.textContent = `Word count: ${data.wordCount ?? 'unknown'}`;
+      } catch (err) {
+        statusEl.textContent = `Error: ${err.message}`;
+      }
+    }
+
+    submitBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      handleUpload();
+    });
+  </script>
+</body>
+</html>
