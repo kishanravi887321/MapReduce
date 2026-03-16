@@ -3,7 +3,7 @@ const multer = require('multer');
 const { getWordCountFromPdf } = require('./controllers/pdfController');
 
 const app = express();
-const PORT = process.env.PORT || 7001;
+const PORT = process.env.PORT || 7003;
 
 app.use(express.json());
 
