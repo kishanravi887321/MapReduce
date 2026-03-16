@@ -8,20 +8,7 @@
 </head>
 <body>
   <h1>PDF Word Count</h1>
-  <p>Upload a PDF to the primary backend or send to worker nodes for distributed word counting.</p>
-
-  <fieldset>
-    <legend>Backend Target</legend>
-    <div>
-      <label><input type="radio" name="backend" value="http://localhost:7001" checked /> backend (7001) — primary API</label>
-      <label><input type="radio" name="backend" value="http://localhost:7002" /> backend1 (7002) — worker</label>
-      <label><input type="radio" name="backend" value="http://localhost:7003" /> backend2 (7003) — worker</label>
-    </div>
-    <div class="row">
-      <label for="customUrl">Custom URL (optional)</label>
-      <input id="customUrl" type="text" placeholder="e.g., http://localhost:7001" />
-    </div>
-  </fieldset>
+  <p>Upload a PDF and send it to backend on port 7001.</p>
 
   <fieldset>
     <legend>Upload PDF</legend>
@@ -36,14 +23,6 @@
     const statusEl = document.getElementById('status');
     const pdfInput = document.getElementById('pdfFile');
     const submitBtn = document.getElementById('submitBtn');
-    const customUrlInput = document.getElementById('customUrl');
-
-    function getTargetBase() {
-      const custom = customUrlInput.value.trim();
-      if (custom) return custom.replace(/\/$/, '');
-      const checked = document.querySelector('input[name="backend"]:checked');
-      return checked ? checked.value : 'http://localhost:7001';
-    }
 
     async function handleUpload() {
       const file = pdfInput.files[0];
@@ -51,8 +30,7 @@
         statusEl.textContent = 'Please choose a PDF file first.';
         return;
       }
-      const target = getTargetBase();
-      const url = `${target}/pdf/wordcount`;
+      const url = 'http://localhost:7001/pdf/wordcount';
       statusEl.textContent = `Uploading to ${url} ...`;
 
       try {
