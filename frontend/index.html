@@ -3,75 +3,216 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>PDF Word Count</title>
+  <title>PDF Analysis Dashboard</title>
   <link rel="stylesheet" href="./style.css" />
 </head>
 <body>
   <main class="shell">
     <section class="hero">
-      <p class="eyebrow">Distributed Algo Lab</p>
-      <h1>PDF Word Count Service</h1>
-      <p class="subtext">Upload a PDF and send it to backend on port 7001 for processing.</p>
+      <div class="hero-mark" aria-hidden="true">
+        <svg viewBox="0 0 48 48" role="img">
+          <rect x="8" y="6" width="24" height="36" rx="4"></rect>
+          <path d="M32 14h8v28a4 4 0 0 1-4 4H16"></path>
+          <path d="M14 18h12M14 24h12M14 30h8"></path>
+        </svg>
+      </div>
+      <div>
+        <p class="eyebrow">Document Intelligence</p>
+        <h1>PDF Analysis Dashboard</h1>
+        <p class="subtext">Upload a PDF document and instantly view word statistics and keyword frequency insights.</p>
+      </div>
     </section>
 
     <section class="panel" aria-label="Upload Panel">
       <div class="panel-head">
         <h2>Upload PDF</h2>
-        <span class="chip">Target: localhost:7001</span>
+        <span class="chip">Ready to analyze</span>
       </div>
 
-      <label for="pdfFile">Choose PDF file</label>
-      <input id="pdfFile" type="file" accept="application/pdf" />
+      <p class="upload-copy">Upload your PDF document for quick word frequency analysis.</p>
+      <div id="dropZone" class="drop-zone" tabindex="0" role="button" aria-label="Drag and drop PDF here or choose file">
+        <input id="pdfFile" type="file" accept="application/pdf" hidden />
+        <p class="drop-title">Drag and drop your PDF here</p>
+        <p class="drop-subtitle">or use the button below to choose a file</p>
+        <button id="chooseBtn" class="btn btn-secondary" type="button">Choose File</button>
+      </div>
 
-      <button id="submitBtn" type="button">Upload and Count Words</button>
+      <div id="fileBadge" class="file-badge" hidden>
+        <span>Selected File:</span>
+        <strong id="fileName">None</strong>
+      </div>
+
+      <div class="actions">
+        <button id="uploadBtn" class="btn btn-secondary" type="button">Upload PDF</button>
+        <button id="analyzeBtn" class="btn btn-primary" type="button">Analyze Document</button>
+      </div>
+
+      <div id="progress" class="progress" hidden>
+        <span class="spinner" aria-hidden="true"></span>
+        <span>Analyzing document...</span>
+      </div>
     </section>
 
-    <section class="panel" aria-label="Response Panel">
-      <h2>Response</h2>
-      <div id="status" class="status">Waiting for upload.</div>
-      <div id="result" class="result"></div>
+    <section class="panel" aria-label="Results Panel">
+      <div class="panel-head">
+        <h2>Results</h2>
+        <button id="resetBtn" class="btn btn-secondary" type="button" hidden>Upload Another File</button>
+      </div>
+      <div id="status" class="status">Select a file to begin.</div>
+
+      <div id="metrics" class="metrics" hidden>
+        <article class="metric-card">
+          <p class="metric-label">Document Name</p>
+          <p class="metric-value metric-name" id="metricDoc">-</p>
+        </article>
+        <article class="metric-card">
+          <p class="metric-label">Total Words</p>
+          <p class="metric-value" id="metricTotal">0</p>
+        </article>
+        <article class="metric-card">
+          <p class="metric-label">Unique Words</p>
+          <p class="metric-value" id="metricUnique">0</p>
+        </article>
+        <article class="metric-card">
+          <p class="metric-label">Processing Status</p>
+          <p class="metric-value" id="metricState">Completed</p>
+        </article>
+      </div>
+
+      <div id="result" class="result" hidden>
+        <div class="result-grid">
+          <section>
+            <h3>Top Word Frequency</h3>
+            <table>
+              <thead>
+                <tr><th>Rank</th><th>Word</th><th>Frequency</th></tr>
+              </thead>
+              <tbody id="resultRows"></tbody>
+            </table>
+          </section>
+          <section>
+            <h3>Top Repeated Words</h3>
+            <div id="chart" class="chart"></div>
+          </section>
+        </div>
+      </div>
     </section>
   </main>
 
   <script>
     const statusEl = document.getElementById('status');
-    const resultEl = document.getElementById('result');
     const pdfInput = document.getElementById('pdfFile');
-    const submitBtn = document.getElementById('submitBtn');
+    const dropZone = document.getElementById('dropZone');
+    const chooseBtn = document.getElementById('chooseBtn');
+    const uploadBtn = document.getElementById('uploadBtn');
+    const analyzeBtn = document.getElementById('analyzeBtn');
+    const progressEl = document.getElementById('progress');
+    const fileBadge = document.getElementById('fileBadge');
+    const fileNameEl = document.getElementById('fileName');
+    const metricsEl = document.getElementById('metrics');
+    const resultEl = document.getElementById('result');
+    const rowsEl = document.getElementById('resultRows');
+    const chartEl = document.getElementById('chart');
+    const resetBtn = document.getElementById('resetBtn');
 
-    function renderTopWords(topWords) {
+    const metricDoc = document.getElementById('metricDoc');
+    const metricTotal = document.getElementById('metricTotal');
+    const metricUnique = document.getElementById('metricUnique');
+    const metricState = document.getElementById('metricState');
+
+    function setStatus(type, message) {
+      statusEl.className = `status ${type}`;
+      statusEl.textContent = message;
+    }
+
+    function showFile(file) {
+      if (!file) {
+        fileBadge.hidden = true;
+        fileNameEl.textContent = 'None';
+        return;
+      }
+      fileBadge.hidden = false;
+      fileNameEl.textContent = file.name;
+      setStatus('info', 'File selected. Click Analyze Document to continue.');
+    }
+
+    function renderChart(topWords) {
+      chartEl.innerHTML = '';
       if (!Array.isArray(topWords) || topWords.length === 0) {
-        resultEl.innerHTML = '<p class="muted">No words found in the PDF.</p>';
+        chartEl.innerHTML = '<p class="muted">No chart data available.</p>';
         return;
       }
 
-      const rows = topWords
+      const maxCount = Math.max(...topWords.map((item) => item.count), 1);
+      const bars = topWords.slice(0, 8).map((item) => {
+        const width = Math.max(8, Math.round((item.count / maxCount) * 100));
+        return `
+          <div class="bar-row">
+            <span class="bar-label">${item.word}</span>
+            <div class="bar-track"><div class="bar-fill" style="width:${width}%"></div></div>
+            <span class="bar-value">${item.count}</span>
+          </div>
+        `;
+      }).join('');
+
+      chartEl.innerHTML = bars;
+    }
+
+    function renderResults(data, file) {
+      const topWords = Array.isArray(data.topWords) ? data.topWords : [];
+      rowsEl.innerHTML = topWords
         .map((item, index) => `<tr><td>${index + 1}</td><td>${item.word}</td><td>${item.count}</td></tr>`)
         .join('');
 
-      resultEl.innerHTML = `
-        <h3>Top Word Frequencies</h3>
-        <table>
-          <thead>
-            <tr><th>#</th><th>Word</th><th>Count</th></tr>
-          </thead>
-          <tbody>${rows}</tbody>
-        </table>
-      `;
+      if (topWords.length === 0) {
+        rowsEl.innerHTML = '<tr><td colspan="3">No meaningful words found.</td></tr>';
+      }
+
+      renderChart(topWords);
+      metricsEl.hidden = false;
+      resultEl.hidden = false;
+      resetBtn.hidden = false;
+
+      metricDoc.textContent = file ? file.name : 'Uploaded document';
+      metricTotal.textContent = data.wordCount ?? 0;
+      metricUnique.textContent = data.uniqueWordCount ?? 0;
+      metricState.textContent = 'Completed';
+
+      setStatus('success', 'Your document has been processed successfully. Here is a summary of the document statistics.');
+    }
+
+    function resetView() {
+      pdfInput.value = '';
+      showFile(null);
+      progressEl.hidden = true;
+      metricsEl.hidden = true;
+      resultEl.hidden = true;
+      resetBtn.hidden = true;
+      rowsEl.innerHTML = '';
+      chartEl.innerHTML = '';
+      metricDoc.textContent = '-';
+      metricTotal.textContent = '0';
+      metricUnique.textContent = '0';
+      metricState.textContent = 'Completed';
+      setStatus('info', 'Select a file to begin.');
     }
 
     async function handleUpload() {
       const file = pdfInput.files[0];
       if (!file) {
-        statusEl.className = 'status error';
-        statusEl.textContent = 'Please choose a PDF file first.';
-        resultEl.innerHTML = '';
+        setStatus('error', 'Please choose a PDF file before analyzing.');
         return;
       }
+
+      if (file.type !== 'application/pdf') {
+        setStatus('error', 'Only PDF documents are supported.');
+        return;
+      }
+
       const url = 'http://localhost:7001/pdf/wordcount';
-      statusEl.className = 'status busy';
-      statusEl.textContent = `Uploading to ${url} ...`;
-      resultEl.innerHTML = '';
+      progressEl.hidden = false;
+      analyzeBtn.disabled = true;
+      setStatus('busy', 'Processing your document. Please wait...');
 
       try {
         const formData = new FormData();
@@ -82,25 +223,72 @@
         });
         const data = await resp.json().catch(() => ({}));
         if (!resp.ok) {
-          statusEl.className = 'status error';
-          statusEl.textContent = data.error || `Request failed with status ${resp.status}`;
-          resultEl.innerHTML = '';
+          setStatus('error', data.error || 'Unable to process the document at this time.');
           return;
         }
-        statusEl.className = 'status success';
-        statusEl.textContent = `Total words: ${data.wordCount ?? 'unknown'} | Unique words: ${data.uniqueWordCount ?? 'unknown'}`;
-        renderTopWords(data.topWords);
+        renderResults(data, file);
       } catch (err) {
-        statusEl.className = 'status error';
-        statusEl.textContent = `Error: ${err.message}`;
-        resultEl.innerHTML = '';
+        setStatus('error', 'Network error. Please check that the analysis service is running.');
+      } finally {
+        progressEl.hidden = true;
+        analyzeBtn.disabled = false;
       }
     }
 
-    submitBtn.addEventListener('click', (e) => {
+    function handleFileSelection(file) {
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      pdfInput.files = dt.files;
+      showFile(file);
+    }
+
+    chooseBtn.addEventListener('click', () => {
+      pdfInput.click();
+    });
+
+    uploadBtn.addEventListener('click', () => {
+      pdfInput.click();
+    });
+
+    pdfInput.addEventListener('change', () => {
+      showFile(pdfInput.files[0]);
+    });
+
+    dropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropZone.classList.add('drag-over');
+    });
+
+    dropZone.addEventListener('dragleave', () => {
+      dropZone.classList.remove('drag-over');
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('drag-over');
+      const file = e.dataTransfer.files[0];
+      if (file) {
+        handleFileSelection(file);
+      }
+    });
+
+    dropZone.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        pdfInput.click();
+      }
+    });
+
+    analyzeBtn.addEventListener('click', (e) => {
       e.preventDefault();
       handleUpload();
     });
+
+    resetBtn.addEventListener('click', () => {
+      resetView();
+    });
+
+    resetView();
   </script>
 </body>
 </html>
