@@ -27,6 +27,46 @@ const upload = multer({
   limits: { fileSize: 10 * 1024 * 1024 },
 });
 
+function partitionFrequencies(frequencies) {
+  const worker1 = {};
+  const worker2 = {};
+
+  Object.entries(frequencies || {}).forEach(([word, count], index) => {
+    if (index % 2 === 0) {
+      worker1[word] = count;
+    } else {
+      worker2[word] = count;
+    }
+  });
+
+  return { worker1, worker2 };
+}
+
+async function sendFrequencyToWorker(workerName, workerUrl, payload) {
+  try {
+    const response = await fetch(workerUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await response.json().catch(() => ({}));
+
+    return {
+      worker: workerName,
+      ok: response.ok,
+      status: response.status,
+      response: data,
+    };
+  } catch (error) {
+    return {
+      worker: workerName,
+      ok: false,
+      error: error.message,
+    };
+  }
+}
+
 app.get('/', (_req, res) => {
   res.send({ message: 'Express server is running.' });
 });
@@ -46,7 +86,28 @@ app.post('/pdf/wordcount', upload.single('file'), async (req, res) => {
     }
 
     const result = await getWordCountFromPdf(req.file.buffer);
-    res.status(200).send(result);
+    const { worker1, worker2 } = partitionFrequencies(result.frequencies);
+
+    const createdAt = new Date().toISOString();
+    const dispatchResults = await Promise.all([
+      sendFrequencyToWorker('backend1', 'http://localhost:7002/store/frequencies', {
+        source: 'backend',
+        createdAt,
+        frequencies: worker1,
+      }),
+      sendFrequencyToWorker('backend2', 'http://localhost:7003/store/frequencies', {
+        source: 'backend',
+        createdAt,
+        frequencies: worker2,
+      }),
+    ]);
+
+    console.log('[backend] Dispatched frequency partitions:', dispatchResults);
+
+    res.status(200).send({
+      ...result,
+      workerDispatch: dispatchResults,
+    });
   } catch (err) {
     console.error('Error processing PDF word count:', err.message);
     res.status(500).send({ error: 'Failed to process PDF.' });

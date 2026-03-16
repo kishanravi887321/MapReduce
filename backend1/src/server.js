@@ -7,6 +7,8 @@ const PORT = process.env.PORT || 7002;
 
 app.use(express.json());
 
+const frequencyStore = [];
+
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 },
@@ -18,6 +20,44 @@ app.get('/', (_req, res) => {
 
 app.get('/health', (_req, res) => {
   res.status(200).send({ status: 'ok' });
+});
+
+app.post('/store/frequencies', (req, res) => {
+  const frequencies = (req.body && req.body.frequencies) || {};
+  const source = (req.body && req.body.source) || 'unknown';
+  const createdAt = (req.body && req.body.createdAt) || new Date().toISOString();
+
+  if (typeof frequencies !== 'object' || Array.isArray(frequencies)) {
+    return res.status(400).send({ error: 'frequencies must be an object of word counts.' });
+  }
+
+  const uniqueWords = Object.keys(frequencies).length;
+  const batch = {
+    batchId: frequencyStore.length + 1,
+    source,
+    createdAt,
+    uniqueWords,
+    frequencies,
+  };
+
+  frequencyStore.push(batch);
+
+  console.log(`[backend1] Stored batch #${batch.batchId} from ${source}`);
+  console.log('[backend1] Frequency payload:', frequencies);
+
+  res.status(200).send({
+    message: 'Frequencies stored in backend1',
+    batchId: batch.batchId,
+    uniqueWords,
+    totalBatches: frequencyStore.length,
+  });
+});
+
+app.get('/store/frequencies', (_req, res) => {
+  res.status(200).send({
+    totalBatches: frequencyStore.length,
+    latestBatch: frequencyStore[frequencyStore.length - 1] || null,
+  });
 });
 
 app.post('/pdf/wordcount', upload.single('file'), async (req, res) => {
