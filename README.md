@@ -1,10 +1,11 @@
-# Express Server (port 7001)
+# Backend: Express Server (port 7001)
 
-Minimal Express server that listens on port 7001 (or `PORT` env override) with a root and health endpoint.
+Minimal Express server lives under `backend/` and listens on port 7001 (or `PORT` env override) with a root and health endpoint.
 
 ## Setup
 
 ```sh
+cd backend
 npm install .
 ```
 
@@ -13,12 +14,14 @@ npm install .
 - Development (auto-reload):
 
 ```sh
+cd backend
 npm run dev
 ```
 
 - Production:
 
 ```sh
+cd backend
 npm start
 ```
 
