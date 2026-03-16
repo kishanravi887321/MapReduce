@@ -7,6 +7,21 @@ const PORT = process.env.PORT || 7001;
 
 app.use(express.json());
 
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (origin === 'http://127.0.0.1:5500' || origin === 'http://localhost:5500') {
+    res.header('Access-Control-Allow-Origin', origin);
+  }
+  res.header('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(204);
+  }
+
+  next();
+});
+
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 },
