@@ -44,6 +44,7 @@ function partitionFrequencies(frequencies) {
 
 async function sendFrequencyToWorker(workerName, workerUrl, payload) {
   try {
+    console.log(`[backend] Sending frequencies to ${workerName} at ${workerUrl}`);
     const response = await fetch(workerUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -66,6 +67,36 @@ async function sendFrequencyToWorker(workerName, workerUrl, payload) {
     };
   }
 }
+
+app.post('/dispatch/test', async (req, res) => {
+  const incoming = req.body && req.body.frequencies;
+  const frequencies = incoming && typeof incoming === 'object' && !Array.isArray(incoming)
+    ? incoming
+    : { distributed: 2, mapreduce: 3, hadoop: 1, spark: 1 };
+
+  const { worker1, worker2 } = partitionFrequencies(frequencies);
+  const createdAt = new Date().toISOString();
+
+  const dispatchResults = await Promise.all([
+    sendFrequencyToWorker('backend1', 'http://localhost:7002/store/frequencies', {
+      source: 'backend-dispatch-test',
+      createdAt,
+      frequencies: worker1,
+    }),
+    sendFrequencyToWorker('backend2', 'http://localhost:7003/store/frequencies', {
+      source: 'backend-dispatch-test',
+      createdAt,
+      frequencies: worker2,
+    }),
+  ]);
+
+  console.log('[backend] Test dispatch results:', dispatchResults);
+
+  res.status(200).send({
+    message: 'Dispatch test completed',
+    dispatchResults,
+  });
+});
 
 app.get('/', (_req, res) => {
   res.send({ message: 'Express server is running.' });

@@ -20,3 +20,7 @@ Response: { message: string, batchId: number, uniqueWords: number, totalBatches:
 GET /store/frequencies (backend1:7002 and backend2:7003)
 Input: none
 Response: { totalBatches: number, latestBatch: object|null }
+
+POST /dispatch/test (backend:7001)
+Input: optional JSON { frequencies: { [word]: count } }
+Response: { message: string, dispatchResults: [{ worker, ok, status|error, response? }] }
