@@ -29,24 +29,49 @@
     <section class="panel" aria-label="Response Panel">
       <h2>Response</h2>
       <div id="status" class="status">Waiting for upload.</div>
+      <div id="result" class="result"></div>
     </section>
   </main>
 
   <script>
     const statusEl = document.getElementById('status');
+    const resultEl = document.getElementById('result');
     const pdfInput = document.getElementById('pdfFile');
     const submitBtn = document.getElementById('submitBtn');
+
+    function renderTopWords(topWords) {
+      if (!Array.isArray(topWords) || topWords.length === 0) {
+        resultEl.innerHTML = '<p class="muted">No words found in the PDF.</p>';
+        return;
+      }
+
+      const rows = topWords
+        .map((item, index) => `<tr><td>${index + 1}</td><td>${item.word}</td><td>${item.count}</td></tr>`)
+        .join('');
+
+      resultEl.innerHTML = `
+        <h3>Top Word Frequencies</h3>
+        <table>
+          <thead>
+            <tr><th>#</th><th>Word</th><th>Count</th></tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      `;
+    }
 
     async function handleUpload() {
       const file = pdfInput.files[0];
       if (!file) {
         statusEl.className = 'status error';
         statusEl.textContent = 'Please choose a PDF file first.';
+        resultEl.innerHTML = '';
         return;
       }
       const url = 'http://localhost:7001/pdf/wordcount';
       statusEl.className = 'status busy';
       statusEl.textContent = `Uploading to ${url} ...`;
+      resultEl.innerHTML = '';
 
       try {
         const formData = new FormData();
@@ -59,13 +84,16 @@
         if (!resp.ok) {
           statusEl.className = 'status error';
           statusEl.textContent = data.error || `Request failed with status ${resp.status}`;
+          resultEl.innerHTML = '';
           return;
         }
         statusEl.className = 'status success';
-        statusEl.textContent = `Word count: ${data.wordCount ?? 'unknown'}`;
+        statusEl.textContent = `Total words: ${data.wordCount ?? 'unknown'} | Unique words: ${data.uniqueWordCount ?? 'unknown'}`;
+        renderTopWords(data.topWords);
       } catch (err) {
         statusEl.className = 'status error';
         statusEl.textContent = `Error: ${err.message}`;
+        resultEl.innerHTML = '';
       }
     }
 

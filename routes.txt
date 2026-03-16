@@ -10,5 +10,5 @@ Response: { status: "ok" }
 
 POST /pdf/wordcount
 Input: multipart/form-data with field "file" containing a PDF document
-Response: { wordCount: number }
+Response: { wordCount: number, uniqueWordCount: number, frequencies: { [word]: count }, topWords: [{ word: string, count: number }] }
 Error Responses: 400 for missing/invalid file, 500 on processing errors

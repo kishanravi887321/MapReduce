@@ -163,6 +163,45 @@ button:active {
   color: var(--warn);
 }
 
+.result {
+  margin-top: 14px;
+}
+
+.result h3 {
+  margin: 0 0 8px;
+  font-size: 0.95rem;
+}
+
+.result .muted {
+  margin: 0;
+  color: var(--muted);
+}
+
+.result table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fffefb;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.result th,
+.result td {
+  padding: 9px 10px;
+  text-align: left;
+  border-bottom: 1px solid #e4e1d7;
+}
+
+.result th {
+  background: #f1f6f2;
+  font-weight: 700;
+}
+
+.result tr:last-child td {
+  border-bottom: none;
+}
+
 @keyframes rise-in {
   from {
     opacity: 0;
